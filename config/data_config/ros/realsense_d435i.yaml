@@ -1,0 +1,38 @@
+dataset_name: 'realsense_d435i'
+
+ros_topics:
+  # RealSense D435i 默认话题名 (realsense2_camera 驱动)
+  # 使用对齐后的深度 (aligned_depth_to_color)
+  rgb: "/camera/color/image_raw"
+  depth: "/camera/aligned_depth_to_color/image_raw"
+
+  # 里程计话题 - 需要从TF树转换，见下方说明
+  # 方案A: 如果你有SLAM/VIO输出的odometry话题，直接填入
+  # 方案B: 如果只有TF，需要用tf_to_odom节点转换
+  odom: "/odom"
+
+  # 相机内参话题 (备用，优先使用下方手动配置)
+  camera_info: "/camera/color/camera_info"
+
+# D435i 深度图格式为 16UC1 (uint16, 毫米单位)
+# 1000.0 将毫米转换为米
+depth_factor: 1000.0
+
+# D435i 640x480 默认内参 (根据你的实际分辨率调整)
+# 可通过 rostopic echo /camera/color/camera_info 获取精确值
+# 或者注释掉这段，系统会自动从 camera_info 话题读取
+intrinsic:
+  fx: 615.0
+  fy: 615.0
+  cx: 320.0
+  cy: 240.0
+
+# 外参：相机坐标系到机器人base_link的变换
+# 如果相机就装在机器人正前方且无旋转，用单位矩阵
+# 否则需要填入实际的 camera_link → base_link 变换
+# 可通过 rosrun tf tf_echo base_link camera_color_optical_frame 获取
+# extrinsics:
+#   - [r00, r01, r02, tx]
+#   - [r10, r11, r12, ty]
+#   - [r20, r21, r22, tz]
+#   - [0.0, 0.0, 0.0, 1.0]
