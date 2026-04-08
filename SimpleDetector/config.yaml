@@ -1,0 +1,68 @@
+# ============================================================
+# SimpleDetector 配置文件
+# ============================================================
+
+# ---------- ROS 话题 ----------
+ros_topics:
+  rgb: "/camera/color/image_raw"
+  depth: "/camera/aligned_depth_to_color/image_raw"
+  odom: "/odom"
+  camera_info: "/camera/color/camera_info"
+
+# 是否使用 CompressedImage 话题（true = compressed, false = raw Image）
+use_compressed_topic: false
+
+# RGB / Depth / Odom 时间同步容差（秒）
+sync_threshold: 0.1
+
+# ---------- 相机参数 ----------
+# 深度图缩放因子（uint16 毫米深度用 1000.0，float32 米深度用 1.0）
+depth_factor: 1000.0
+
+# 相机内参（留空则从 camera_info 话题自动获取）
+intrinsic:
+  fx: 615.0
+  fy: 615.0
+  cx: 320.0
+  cy: 240.0
+
+# 相机外参：camera → base_link 的 4x4 变换矩阵
+# 默认单位矩阵（相机与机器人坐标系对齐）
+# extrinsics:
+#   - [1, 0, 0, 0]
+#   - [0, 1, 0, 0]
+#   - [0, 0, 1, 0]
+#   - [0, 0, 0, 1]
+
+# 世界坐标系旋转补偿（度）
+world_roll: 0
+world_pitch: 0
+world_yaw: 0
+
+# ---------- 模型路径 ----------
+yolo_model: model/yolov8l-world.pt
+sam_model: model/mobile_sam.pt
+
+# ---------- 类别列表 ----------
+classes_path: ./config/class_list/gpt_indoor_general.txt
+bg_classes: ["wall", "floor", "ceiling"]
+skip_bg: false
+
+# ---------- 点云处理参数 ----------
+# 单个物体最少点数（低于此值的检测被丢弃）
+min_points: 5
+# 深度图采样比例（0~1，越小越快）
+pcd_sample_ratio: 0.04
+# DBSCAN 聚类去噪参数
+dbscan_eps: 0.1
+dbscan_min_points: 10
+
+# ---------- 检测过滤 ----------
+# mask 最小像素面积（低于此值的检测被丢弃）
+small_mask_threshold: 204
+
+# ---------- 输出 ----------
+output_dir: ./output
+
+# ---------- 设备 ----------
+device: cuda

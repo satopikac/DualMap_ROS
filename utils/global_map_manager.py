@@ -86,10 +86,10 @@ class GlobalMapManager(BaseMapManager):
         except Exception as e:
             logger.error(f"[GlobalMap] Failed to update semantic map JSON: {e}")
 
-        try:
-            self.spatial_relation_graph.update_from_global_map(self.global_map)
-        except Exception as e:
-            logger.error(f"[GlobalMap] Failed to update spatial graph JSON: {e}")
+        # try:
+        #     self.spatial_relation_graph.update_from_global_map(self.global_map)
+        # except Exception as e:
+        #     logger.error(f"[GlobalMap] Failed to update spatial graph JSON: {e}")
 
     def process_observations(self, curr_observations: List[Observation]) -> None:
 
