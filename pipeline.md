@@ -124,11 +124,11 @@ def detect_ros_version():
 
 系统订阅三个话题：
 
-| 话题 | 消息类型 | 内容 |
-|------|---------|------|
-| rgb | `Image` 或 `CompressedImage` | RGB 彩色图像 |
-| depth | `Image` 或 `CompressedImage` | 深度图 |
-| odom | `Odometry` | 位姿（平移+四元数） |
+| 话题  | 消息类型                         | 内容                         |
+| ----- | -------------------------------- | ---------------------------- |
+| rgb   | `Image` 或 `CompressedImage` | RGB 彩色图像                 |
+| depth | `Image` 或 `CompressedImage` | 深度图                       |
+| odom  | `Odometry`                     | 位姿（平移+四元数）/nav_msgs |
 
 使用 `ApproximateTimeSynchronizer` 进行三路时间同步：
 
@@ -161,6 +161,7 @@ def synced_callback(self, rgb_msg, depth_msg, odom_msg):
 ```
 
 **图像解码细节** (`runner_ros_base.py:decompress_image`):
+
 - 非压缩模式：直接用 `cv_bridge` 将 ROS Image 转为 numpy 数组
 - 压缩模式：RGB 用 `cv2.imdecode(np_arr, IMREAD_COLOR)` + BGR→RGB 转换；深度用 `cv2.imdecode(data[12:], IMREAD_UNCHANGED)` (跳过 12 字节 compressedDepth 头)
 
@@ -211,6 +212,7 @@ def push_data(self, rgb_img, depth_img, pose, timestamp):
 ```
 
 **坐标变换链**:
+
 ```
 world_pose = world_transform × (odom_pose × extrinsics)
 ```
@@ -266,21 +268,22 @@ def run_once(self, current_time_fn):
 **关键帧判定逻辑** (`core.py:check_keyframe`)，满足任一条件即为关键帧：
 
 1. **平移阈值**: 与上一关键帧的平移距离 ≥ `pose_threshold`（默认 0.1m）
+
    ```python
    translation_diff = np.linalg.norm(curr_pose[:3, 3] - self.last_keyframe_pose[:3, 3])
    if translation_diff >= self.pose_threshold:
        is_keyframe = True
    ```
-
 2. **旋转阈值**: 与上一关键帧的旋转角度差 ≥ `rotation_threshold`（默认 3°）
+
    ```python
    rotation_diff = curr_rotation.inv() * last_rotation
    angle_diff = rotation_diff.magnitude() * (180 / np.pi)
    if angle_diff >= self.rotation_threshold:
        is_keyframe = True
    ```
-
 3. **时间阈值**: 距上一关键帧的时间间隔 ≥ `time_threshold`（默认 0.5s）
+
    ```python
    if abs(time_stamp - self.last_keyframe_time) >= self.time_threshold:
        is_keyframe = True
@@ -404,6 +407,7 @@ def filter_fs_detections_by_curr(self, fs_detections, curr_detections, ...):
 ```
 
 **效果**: 假设场景中有一个"书"（不在 YOLO 类别列表中），YOLO 检测不到它，但 FastSAM 能分割出它的掩膜。这个掩膜不与任何 YOLO 掩膜重叠，因此被保留。最终合并：
+
 ```
 已知类别 (YOLO+SAM) + 未知物体 (FastSAM 补充) = 完整检测集
 ```
@@ -448,11 +452,13 @@ def mask_depth_to_points(depth, image, cam_K, masks, device):
 ```
 
 **原理**: 针孔相机模型的反投影。对于掩膜内每个像素 `(u, v)`，已知深度 `d`：
+
 ```
 X = (u - cx) × d / fx
 Y = (v - cy) × d / fy
 Z = d
 ```
+
 得到相机坐标系下的 3D 点 `(X, Y, Z)`。
 
 随后对每个物体的点云做降采样和 DBSCAN 聚类去噪：
@@ -471,6 +477,7 @@ for i in range(N):
 ```
 
 **`refine_points_with_clustering`** 使用 Open3D 的 DBSCAN：
+
 1. 聚类 (`eps=0.1m`, `min_points=10`)
 2. 丢弃噪声点 (label=-1)
 3. 只保留最大簇的点
@@ -510,10 +517,12 @@ def compute_clip_features_batched(self, image, detections, clip_model, ...):
 ```
 
 **两种特征的含义**:
+
 - `image_feats`: 物体裁剪图像经 CLIP 视觉编码器得到的 512 维向量 — 描述"这个物体看起来像什么"
 - `text_feats`: 类别名经 CLIP 文本编码器得到的 512 维向量 — 描述"这个类别名在语义空间中的位置"
 
 **加权融合** (`get_weighted_feature`):
+
 ```python
 weighted_feature = 0.7 * image_feat + 0.3 * text_feat
 weighted_feature /= np.linalg.norm(weighted_feature)
@@ -637,6 +646,7 @@ def process_observations(self, curr_observations):
 局部匹配使用两种相似度之和：
 
 **空间相似度** (`compute_spatial_sim`): 基于点云重叠率
+
 ```python
 # 先用 3D IoU 预筛选（跳过不可能重叠的对）
 iou = self.compute_3d_iou_batch(map_bbox_torch, curr_bbox_torch)
@@ -653,6 +663,7 @@ for idx_a in range(len_map):
 ```
 
 **视觉相似度** (`compute_visual_sim`): CLIP 特征余弦相似度
+
 ```python
 map_fts = map_feats_torch.unsqueeze(-1)    # (M, D, 1)
 curr_fts = curr_feats_torch.T.unsqueeze(0)  # (1, D, N)
@@ -660,6 +671,7 @@ visual_sim = F.cosine_similarity(map_fts, curr_fts, dim=1)  # (M, N)
 ```
 
 **总相似度与匹配分配**:
+
 ```python
 sim_mat = spatial_sim_mat + visual_sim_mat   # 两者相加
 sim_mat = sim_mat.T                          # (curr, map)
@@ -814,6 +826,7 @@ if self.max_common > self._cfg.max_common_th:
 ```
 
 **稳定性检查** (`stability_check`):
+
 ```python
 # 条件1: 观测次数 ≥ 8
 if self.observed_num < 8:
@@ -829,6 +842,7 @@ if self.is_class_converged():
 ```
 
 `is_class_converged` 检查三个指标之一满足即可：
+
 - 最大类别概率 > 0.50
 - 类别概率分布的熵 < 0.2
 - 最近 3 次概率变化率 < 0.2
@@ -1102,13 +1116,13 @@ def update_from_global_map(self, global_map):
 
 **空间关系计算** (`_compute_relations`) 的五种关系：
 
-| 关系 | 判定条件 |
-|------|---------|
-| `on_top_of` | A 底面 Z ≈ B 顶面 Z（容差 0.15m） 且 XY 投影重叠 > 30% |
-| `same_level` | 两者底面 Z 差 < 0.10m |
-| `near` | 水平距离 (XY) < 1.0m |
-| `adjacent` | 包围盒最小间隙 < 0.15m |
-| `contains` | 交集体积 / 内部体积 > 70% |
+| 关系           | 判定条件                                                |
+| -------------- | ------------------------------------------------------- |
+| `on_top_of`  | A 底面 Z ≈ B 顶面 Z（容差 0.15m） 且 XY 投影重叠 > 30% |
+| `same_level` | 两者底面 Z 差 < 0.10m                                   |
+| `near`       | 水平距离 (XY) < 1.0m                                    |
+| `adjacent`   | 包围盒最小间隙 < 0.15m                                  |
+| `contains`   | 交集体积 / 内部体积 > 70%                               |
 
 ### 8.3 结束时保存：Pickle 文件
 
@@ -1189,24 +1203,25 @@ def save_layout(self):
 ```
 
 `layout.pcd` 的生成过程是在独立后台线程中完成的：
+
 - 每当相机移动 >1m 或旋转 >20°，将当前深度图（16 倍降采样）反投影为世界坐标系点云
 - 与已累积的布局点云合并
 - 做 `voxel_down_sample(0.05m)` 控制规模
 
 ### 8.5 全部输出文件总结
 
-| 文件 | 保存时机 | 内容 | 格式 |
-|------|---------|------|------|
-| `semantic/semantic_map.json` | 每次全局地图更新 | 所有物体的坐标/尺寸/类别/实例ID | JSON |
-| `semantic/spatial_graph.json` | 每次全局地图更新 | 物体间空间关系图(nodes+edges) | JSON |
-| `map/{uid}.pkl` | 结束时 | 每个全局物体的完整序列化数据 | Pickle |
-| `map/layout.pcd` | 结束时 | 场景几何布局点云 | PCD |
-| `map/wall.pcd` | 结束时(如启用) | 提取的墙壁障碍物点云 | PCD |
-| `path/global_path/{n}.json` | 路径规划时 | 全局导航路径 [[x,y,z],...] | JSON |
-| `path/local_path/{n}.json` | 路径规划时 | 局部避障路径 | JSON |
-| `path/action_path/{n}.json` | 路径规划时 | 合并执行路径 | JSON |
-| `system_time.csv` | 结束时 | 各阶段平均耗时统计 | CSV |
-| `log/*.log` | 全程 | 运行日志 | LOG |
+| 文件                            | 保存时机         | 内容                            | 格式   |
+| ------------------------------- | ---------------- | ------------------------------- | ------ |
+| `semantic/semantic_map.json`  | 每次全局地图更新 | 所有物体的坐标/尺寸/类别/实例ID | JSON   |
+| `semantic/spatial_graph.json` | 每次全局地图更新 | 物体间空间关系图(nodes+edges)   | JSON   |
+| `map/{uid}.pkl`               | 结束时           | 每个全局物体的完整序列化数据    | Pickle |
+| `map/layout.pcd`              | 结束时           | 场景几何布局点云                | PCD    |
+| `map/wall.pcd`                | 结束时(如启用)   | 提取的墙壁障碍物点云            | PCD    |
+| `path/global_path/{n}.json`   | 路径规划时       | 全局导航路径 [[x,y,z],...]      | JSON   |
+| `path/local_path/{n}.json`    | 路径规划时       | 局部避障路径                    | JSON   |
+| `path/action_path/{n}.json`   | 路径规划时       | 合并执行路径                    | JSON   |
+| `system_time.csv`             | 结束时           | 各阶段平均耗时统计              | CSV    |
+| `log/*.log`                   | 全程             | 运行日志                        | LOG    |
 
 ---
 
@@ -1263,65 +1278,70 @@ def save_layout(self):
 ## 10. 附录：关键数据结构字段速查
 
 ### DataInput
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `idx` | int | 关键帧序号 |
-| `time_stamp` | float | ROS 时间戳(秒) |
-| `color` | ndarray(H,W,3) | RGB 图像 uint8 |
-| `depth` | ndarray(H,W,1) | 深度图 float32 米 |
-| `intrinsics` | ndarray(3,3) | 相机内参矩阵 |
-| `pose` | ndarray(4,4) | 世界坐标系位姿 SE(3) |
+
+| 字段           | 类型           | 含义                 |
+| -------------- | -------------- | -------------------- |
+| `idx`        | int            | 关键帧序号           |
+| `time_stamp` | float          | ROS 时间戳(秒)       |
+| `color`      | ndarray(H,W,3) | RGB 图像 uint8       |
+| `depth`      | ndarray(H,W,1) | 深度图 float32 米    |
+| `intrinsics` | ndarray(3,3)   | 相机内参矩阵         |
+| `pose`       | ndarray(4,4)   | 世界坐标系位姿 SE(3) |
 
 ### LocalObservation
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `idx` | int | 帧号 |
-| `class_id` | int | 类别索引 |
-| `conf` | float | YOLO 置信度 |
-| `pcd` | PointCloud | 世界坐标系 3D 点云 |
-| `bbox` | AABB | 3D 包围盒 |
-| `clip_ft` | ndarray(512) | CLIP 加权特征 |
-| `is_low_mobility` | bool | 低移动性标记 |
-| `distance` | float | 到相机距离(米) |
-| `matched_obj_idx` | int | 匹配的地图物体索引(-1=新) |
+
+| 字段                | 类型         | 含义                      |
+| ------------------- | ------------ | ------------------------- |
+| `idx`             | int          | 帧号                      |
+| `class_id`        | int          | 类别索引                  |
+| `conf`            | float        | YOLO 置信度               |
+| `pcd`             | PointCloud   | 世界坐标系 3D 点云        |
+| `bbox`            | AABB         | 3D 包围盒                 |
+| `clip_ft`         | ndarray(512) | CLIP 加权特征             |
+| `is_low_mobility` | bool         | 低移动性标记              |
+| `distance`        | float        | 到相机距离(米)            |
+| `matched_obj_idx` | int          | 匹配的地图物体索引(-1=新) |
 
 ### LocalObject
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `uid` | UUID | 唯一标识 |
-| `pcd` | PointCloud | 累积合并的 3D 点云 |
-| `bbox` | AABB | 当前 3D 包围盒 |
-| `clip_ft` | ndarray(512) | 加权平均 CLIP 特征 |
-| `class_id` | int | 多数投票类别 |
-| `observed_num` | int | 观测次数 |
-| `status` | LocalObjStatus | 生命周期状态 |
-| `is_stable` | bool | 是否稳定 |
-| `is_low_mobility` | bool | 低移动性 |
-| `class_probs` | ndarray(C) | 贝叶斯类别概率分布 |
-| `major_plane_info` | float | 主平面 Z 值 |
-| `split_info` | dict | 分裂检测信息 |
+
+| 字段                 | 类型           | 含义               |
+| -------------------- | -------------- | ------------------ |
+| `uid`              | UUID           | 唯一标识           |
+| `pcd`              | PointCloud     | 累积合并的 3D 点云 |
+| `bbox`             | AABB           | 当前 3D 包围盒     |
+| `clip_ft`          | ndarray(512)   | 加权平均 CLIP 特征 |
+| `class_id`         | int            | 多数投票类别       |
+| `observed_num`     | int            | 观测次数           |
+| `status`           | LocalObjStatus | 生命周期状态       |
+| `is_stable`        | bool           | 是否稳定           |
+| `is_low_mobility`  | bool           | 低移动性           |
+| `class_probs`      | ndarray(C)     | 贝叶斯类别概率分布 |
+| `major_plane_info` | float          | 主平面 Z 值        |
+| `split_info`       | dict           | 分裂检测信息       |
 
 ### GlobalObservation
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `uid` | UUID | 来源 LocalObject 的 UID |
-| `pcd` | PointCloud | 3D 点云 |
-| `bbox` | AABB | 3D 包围盒 |
-| `pcd_2d` | PointCloud | 俯视图 2D 投影点云 |
-| `bbox_2d` | AABB | 俯视图 2D 包围盒 |
-| `clip_ft` | ndarray(512) | CLIP 特征 |
-| `class_id` | int | 类别 |
-| `related_objs` | list[ndarray] | 关联物体 CLIP 特征列表 |
-| `related_bbox` | list[AABB] | 关联物体包围盒 |
-| `related_color` | list[int] | 关联物体类别 ID |
+
+| 字段              | 类型          | 含义                    |
+| ----------------- | ------------- | ----------------------- |
+| `uid`           | UUID          | 来源 LocalObject 的 UID |
+| `pcd`           | PointCloud    | 3D 点云                 |
+| `bbox`          | AABB          | 3D 包围盒               |
+| `pcd_2d`        | PointCloud    | 俯视图 2D 投影点云      |
+| `bbox_2d`       | AABB          | 俯视图 2D 包围盒        |
+| `clip_ft`       | ndarray(512)  | CLIP 特征               |
+| `class_id`      | int           | 类别                    |
+| `related_objs`  | list[ndarray] | 关联物体 CLIP 特征列表  |
+| `related_bbox`  | list[AABB]    | 关联物体包围盒          |
+| `related_color` | list[int]     | 关联物体类别 ID         |
 
 ### GlobalObject
+
 继承 BaseObject 的所有字段，额外添加：
 
-| 字段 | 类型 | 含义 |
-|------|------|------|
-| `pcd_2d` | PointCloud | 俯视图投影 (Z=floor_height) |
-| `bbox_2d` | AABB | 俯视图包围盒 |
-| `related_objs` | list[ndarray] | 累积的关联物体 CLIP 特征 |
-| `related_bbox` | list[AABB] | 累积的关联物体包围盒 |
-| `related_color` | list[int] | 累积的关联物体类别 ID |
+| 字段              | 类型          | 含义                        |
+| ----------------- | ------------- | --------------------------- |
+| `pcd_2d`        | PointCloud    | 俯视图投影 (Z=floor_height) |
+| `bbox_2d`       | AABB          | 俯视图包围盒                |
+| `related_objs`  | list[ndarray] | 累积的关联物体 CLIP 特征    |
+| `related_bbox`  | list[AABB]    | 累积的关联物体包围盒        |
+| `related_color` | list[int]     | 累积的关联物体类别 ID       |
