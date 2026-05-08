@@ -1,15 +1,4 @@
-# DualMap_ROS - 语义地图构建系统 (ROS 专用版)
-
-本项目从 DualMap 中提取了 ROS 数据处理相关代码，移除了离线数据集处理和 iPhone Record3D 模式，专注于 ROS1/ROS2 实时语义建图。
-
-## 相比原版 DualMap 的改动
-
-### 1. 仅保留 ROS 处理流程
-- 移除了 `runner_dataset.py`、`runner_record_3d.py`、`offline_local_map_query.py` 等离线模式
-- 移除了 `utils/dataset.py` 等离线数据集基类
-- 保留了完整的 ROS1/ROS2 运行器和消息发布系统
-
-### 2. 新增: 语义地图 JSON 实时保存 (`utils/semantic_map_manager.py`)
+新增: 语义地图 JSON 实时保存 (`utils/semantic_map_manager.py`)
 在全局地图更新时，自动将所有已识别物体的信息实时保存为 JSON 格式：
 
 **输出文件**: `{output_path}/{scene}/semantic/semantic_map.json`
