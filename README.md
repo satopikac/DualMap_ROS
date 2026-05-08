@@ -1,2 +1,1 @@
-fork from Dualmap(https://github.com/Eku127/DualMap)
-,thanks to the contribution of Dualmap.
+Grateful to the author of [Dualmap](https://github.com/Eku127/DualMap) for his contributions and inspiration.
